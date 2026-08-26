@@ -24,7 +24,11 @@ function addDays(dateStr, days) {
 function isDue(q) { return !q.nextReview || q.nextReview <= today(); }
 function getDueQuestions() { return state.questions.filter(isDue); }
 function getDueFiltered() {
-  let qs = getDueQuestions();
+  let qs;
+  if (studyStatusFilter === 'due') qs = getDueQuestions();
+  else if (studyStatusFilter === 'unmastered') qs = state.questions.filter(q => q.status !== 'mastered');
+  else if (studyStatusFilter === 'mastered') qs = state.questions.filter(q => q.status === 'mastered');
+  else qs = [...state.questions];
   if (studySubjectFilter !== 'all') qs = qs.filter(q => q.subject === studySubjectFilter);
   if (state.studyStartFrom) qs = qs.filter(q => q.id >= state.studyStartFrom);
   return qs;
@@ -82,7 +86,7 @@ function parseTxt(text) {
 // ===== UI STATE =====
 let currentTab = 'home';
 let studyQueue = [], studyIdx = 0, studyShown = false, studyStats = { remembered: 0, forgot: 0 };
-let studySubjectFilter = 'all', studySetup = true;
+let studySubjectFilter = 'all', studyStatusFilter = 'due', studySetup = true;
 let quizFilter = 'all', quizSubject = 'all', quizList = [], quizIdx = 0, quizShown = false;
 let previewQuestions = [], selectedImportSubject = '';
 let clearConfirmPending = false;
@@ -127,6 +131,12 @@ function renderHome() {
     <div class="empty-state"><div class="icon">📚</div><h2>还没有题目</h2><p>去「导入」页面上传 TXT 题库文件，开始备考吧！</p><button class="btn btn-primary" data-tab="import">去导入题库</button></div>
   </div>`;
 
+  const stepLabels = ['新题', '第1次复习', '第2次复习', '第3次复习', '第4次复习'];
+  const dueByStep = stepLabels.map((lbl, i) => {
+    const n = due.filter(q => (q.reviews || 0) === i).length;
+    return n > 0 ? `<div class="card-row"><span class="card-row-label">${lbl}</span><span class="card-row-value blue">${n}</span></div>` : '';
+  }).join('');
+
   return `<div class="page">
     <div class="page-header"><div class="page-title">备考助手</div><div class="page-subtitle">${dateStr()}</div></div>
     ${streak > 0 ? `<div class="streak-badge">🔥 连续学习 ${streak} 天</div>` : ''}
@@ -149,6 +159,9 @@ function renderHome() {
         随机抽题
       </button>
     </div>
+    ${due.length > 0 ? `
+    <div class="section-label">今日复习明细</div>
+    <div class="card">${dueByStep}</div>` : ''}
     <div class="section-label">学习进度</div>
     <div class="card">
       <div class="card-row"><span class="card-row-label">总题数</span><span class="card-row-value">${total}</span></div>
@@ -194,10 +207,22 @@ function renderStudySetup() {
   const subjectChips = subjects.map(s =>
     `<button class="filter-chip${studySubjectFilter === s ? ' active' : ''}" data-study-subject="${s}">${s === 'all' ? '全部科目' : s}</button>`
   ).join('');
-  const dueCount = getDueFiltered().length;
+  const statusOptions = [
+    { id: 'due',        label: '今日计划' },
+    { id: 'unmastered', label: '未掌握' },
+    { id: 'mastered',   label: '已掌握' },
+    { id: 'all',        label: '全部题目' },
+  ];
+  const statusChips = statusOptions.map(o =>
+    `<button class="filter-chip${studyStatusFilter === o.id ? ' active' : ''}" data-study-status="${o.id}">${o.label}</button>`
+  ).join('');
+  const count = getDueFiltered().length;
+  const countLabel = studyStatusFilter === 'due' ? `${count} 题待复习` : `${count} 题`;
 
   return `<div class="page">
     <div class="page-header"><div class="page-title">学习</div></div>
+    <div class="section-label">学习范围</div>
+    <div class="quiz-controls">${statusChips}</div>
     <div class="section-label">选择科目</div>
     <div class="quiz-controls">${subjectChips}</div>
     <div class="section-label">开始位置</div>
@@ -206,10 +231,10 @@ function renderStudySetup() {
       <input type="number" id="startFromInput" value="${state.studyStartFrom || ''}" placeholder="1" min="1" inputmode="numeric">
       <span>题开始（留空 = 全部）</span>
     </div>
-    <div class="section-label">当前筛选：${dueCount} 题待复习</div>
+    <div class="section-label">当前筛选：${countLabel}</div>
     <div class="px-16 mt-12">
-      <button class="btn btn-primary full" id="startStudyBtn" ${dueCount === 0 ? 'disabled style="opacity:.5"' : ''}>
-        开始学习 (${dueCount})
+      <button class="btn btn-primary full" id="startStudyBtn" ${count === 0 ? 'disabled style="opacity:.5"' : ''}>
+        开始学习 (${count})
       </button>
     </div>
   </div>`;
@@ -230,7 +255,7 @@ function renderStudyDone() {
 
 // ===== QUIZ =====
 function renderQuiz() {
-  const statusFilters = [{ id: 'all', label: '全部' }, { id: 'new', label: '新题' }, { id: 'learning', label: '学习中' }, { id: 'mastered', label: '已掌握' }];
+  const statusFilters = [{ id: 'all', label: '全部' }, { id: 'new', label: '新题' }, { id: 'learning', label: '未掌握' }, { id: 'mastered', label: '已掌握' }];
   const subjectFilters = [{ id: 'all', label: '全科' }, { id: '教育学', label: '教育学' }, { id: '心理学', label: '心理学' }, { id: '小三门', label: '小三门' }];
   const statusChips = statusFilters.map(f => `<button class="filter-chip${quizFilter === f.id ? ' active' : ''}" data-filter="${f.id}">${f.label}</button>`).join('');
   const subjectChips = subjectFilters.map(f => `<button class="filter-chip${quizSubject === f.id ? ' active' : ''}" data-quiz-subject="${f.id}">${f.label}</button>`).join('');
@@ -393,6 +418,9 @@ function attachEvents() {
 
   document.querySelectorAll('[data-study-subject]').forEach(el => el.addEventListener('click', () => {
     studySubjectFilter = el.dataset.studySubject; render();
+  }));
+  document.querySelectorAll('[data-study-status]').forEach(el => el.addEventListener('click', () => {
+    studyStatusFilter = el.dataset.studyStatus; render();
   }));
 
   on('backToSetup', () => { studySetup = true; studyQueue = []; render(); });
