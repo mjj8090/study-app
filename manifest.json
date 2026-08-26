@@ -1,0 +1,17 @@
+{
+  "name": "备考助手",
+  "short_name": "备考助手",
+  "description": "教育综合主观题复习助手",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
