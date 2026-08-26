@@ -317,4 +317,18 @@ body{
 .divider{height:0.5px;background:var(--gray4);margin:0;}
 .mt-8{margin-top:8px;}
 .mt-12{margin-top:12px;}
+
+/* ===== PLAN ROW ===== */
+.plan-row{
+  display:flex;align-items:center;gap:8px;
+  padding:12px 20px;font-size:17px;
+  background:var(--card);margin:0 16px 8px;border-radius:12px;
+}
+.plan-row input{
+  width:64px;font-size:17px;font-family:inherit;
+  border:1.5px solid var(--gray3);border-radius:8px;
+  padding:6px 10px;text-align:center;
+  background:var(--bg);color:var(--text);
+  -webkit-appearance:none;
+}
 .px-16{padding:0 16px;}

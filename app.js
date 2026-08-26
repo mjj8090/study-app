@@ -1,12 +1,13 @@
 // ===== STATE =====
 const DB_KEY = 'studyapp_v1';
-let state = { questions: [], streak: 0, lastStudyDate: null, importDate: null, studyStartFrom: null };
+let state = { questions: [], streak: 0, lastStudyDate: null, importDate: null, planStartId: null, dailyNewCount: 5 };
 
 function save() { localStorage.setItem(DB_KEY, JSON.stringify(state)); }
 
 function load() {
   try { const r = localStorage.getItem(DB_KEY); if (r) state = JSON.parse(r); } catch(e) {}
-  if (state.studyStartFrom === undefined) state.studyStartFrom = null;
+  if (state.planStartId === undefined) state.planStartId = null;
+  if (state.dailyNewCount === undefined) state.dailyNewCount = 5;
   updateStreak();
 }
 
@@ -23,6 +24,13 @@ function addDays(dateStr, days) {
 
 function isDue(q) { return !q.nextReview || q.nextReview <= today(); }
 function getDueQuestions() { return state.questions.filter(isDue); }
+function getTodayNewQueue() {
+  return state.questions
+    .filter(q => q.status === 'new' && (!state.planStartId || q.id >= state.planStartId))
+    .sort((a, b) => a.id - b.id)
+    .slice(0, state.dailyNewCount || 5);
+}
+
 function getDueFiltered() {
   let qs;
   if (studyStatusFilter === 'due') qs = getDueQuestions();
@@ -30,7 +38,7 @@ function getDueFiltered() {
   else if (studyStatusFilter === 'mastered') qs = state.questions.filter(q => q.status === 'mastered');
   else qs = [...state.questions];
   if (studySubjectFilter !== 'all') qs = qs.filter(q => q.subject === studySubjectFilter);
-  if (state.studyStartFrom) qs = qs.filter(q => q.id >= state.studyStartFrom);
+  if (state.planStartId) qs = qs.filter(q => q.id >= state.planStartId);
   return qs;
 }
 
@@ -119,46 +127,57 @@ function renderPage() {
 
 // ===== HOME =====
 function renderHome() {
-  const due = getDueQuestions();
+  const due = getDueQuestions().filter(q => q.status !== 'new'); // 旧题到期复习
+  const todayNew = getTodayNewQueue();
   const total = state.questions.length;
   const mastered = state.questions.filter(q => q.status === 'mastered').length;
   const learning = state.questions.filter(q => q.status === 'learning').length;
   const newQ = state.questions.filter(q => q.status === 'new').length;
   const streak = state.streak || 0;
+  const totalToday = todayNew.length + due.length;
 
   if (total === 0) return `<div class="page">
     <div class="page-header"><div class="page-title">备考助手</div><div class="page-subtitle">${dateStr()}</div></div>
     <div class="empty-state"><div class="icon">📚</div><h2>还没有题目</h2><p>去「导入」页面上传 TXT 题库文件，开始备考吧！</p><button class="btn btn-primary" data-tab="import">去导入题库</button></div>
   </div>`;
 
-  const stepLabels = ['新题', '第1次复习', '第2次复习', '第3次复习', '第4次复习'];
+  const stepLabels = ['第1次复习', '第2次复习', '第3次复习', '第4次复习', '第5次复习'];
   const dueByStep = stepLabels.map((lbl, i) => {
     const n = due.filter(q => (q.reviews || 0) === i).length;
     return n > 0 ? `<div class="card-row"><span class="card-row-label">${lbl}</span><span class="card-row-value blue">${n}</span></div>` : '';
   }).join('');
+
+  const bannerSub = totalToday > 0
+    ? `新题 ${todayNew.length} 道 · 复习 ${due.length} 道`
+    : '今日任务已完成 🎉';
 
   return `<div class="page">
     <div class="page-header"><div class="page-title">备考助手</div><div class="page-subtitle">${dateStr()}</div></div>
     ${streak > 0 ? `<div class="streak-badge">🔥 连续学习 ${streak} 天</div>` : ''}
     <div class="today-banner">
       <h2>今日学习计划</h2>
-      <p>${due.length > 0 ? `共 ${due.length} 道题待复习` : '今日任务已完成 🎉'}</p>
+      <p>${bannerSub}</p>
       <div class="today-stats">
+        <div class="today-stat"><div class="val">${todayNew.length}</div><div class="lbl">今日新题</div></div>
         <div class="today-stat"><div class="val">${due.length}</div><div class="lbl">待复习</div></div>
         <div class="today-stat"><div class="val">${mastered}</div><div class="lbl">已掌握</div></div>
-        <div class="today-stat"><div class="val">${total}</div><div class="lbl">总题数</div></div>
       </div>
     </div>
     <div class="btn-group mt-12">
-      <button class="btn btn-primary" id="startStudy" ${due.length === 0 ? 'disabled style="opacity:.5"' : ''}>
+      <button class="btn btn-primary" id="startStudy" ${totalToday === 0 ? 'disabled style="opacity:.5"' : ''}>
         <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 4h5v8l-2.5-1.5L6 12V4z"/></svg>
-        ${due.length > 0 ? `开始学习 (${due.length})` : '今日已完成'}
+        ${totalToday > 0 ? `开始学习 (${totalToday})` : '今日已完成'}
       </button>
       <button class="btn btn-secondary" data-tab="quiz">
         <svg viewBox="0 0 24 24" fill="currentColor" style="width:18px;height:18px"><path d="M11 18h2v-2h-2v2zm1-16C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm0-14c-2.21 0-4 1.79-4 4h2c0-1.1.9-2 2-2s2 .9 2 2c0 2-3 1.75-3 5h2c0-2.25 3-2.5 3-5 0-2.21-1.79-4-4-4z"/></svg>
         随机抽题
       </button>
     </div>
+    ${todayNew.length > 0 ? `
+    <div class="section-label">今日新题</div>
+    <div class="card">
+      <div class="card-row"><span class="card-row-label">第 ${todayNew[0].id}～${todayNew[todayNew.length-1].id} 题</span><span class="card-row-value blue">${todayNew.length} 道</span></div>
+    </div>` : ''}
     ${due.length > 0 ? `
     <div class="section-label">今日复习明细</div>
     <div class="card">${dueByStep}</div>` : ''}
@@ -207,34 +226,31 @@ function renderStudySetup() {
   const subjectChips = subjects.map(s =>
     `<button class="filter-chip${studySubjectFilter === s ? ' active' : ''}" data-study-subject="${s}">${s === 'all' ? '全部科目' : s}</button>`
   ).join('');
-  const statusOptions = [
-    { id: 'due',        label: '今日计划' },
-    { id: 'unmastered', label: '未掌握' },
-    { id: 'mastered',   label: '已掌握' },
-    { id: 'all',        label: '全部题目' },
-  ];
-  const statusChips = statusOptions.map(o =>
-    `<button class="filter-chip${studyStatusFilter === o.id ? ' active' : ''}" data-study-status="${o.id}">${o.label}</button>`
-  ).join('');
-  const count = getDueFiltered().length;
-  const countLabel = studyStatusFilter === 'due' ? `${count} 题待复习` : `${count} 题`;
+  const todayNew = getTodayNewQueue();
+  const due = getDueQuestions().filter(q => q.status !== 'new');
+  const newN = todayNew.length;
+  const dueN = due.length;
+  const total = newN + dueN;
 
   return `<div class="page">
     <div class="page-header"><div class="page-title">学习</div></div>
-    <div class="section-label">学习范围</div>
-    <div class="quiz-controls">${statusChips}</div>
+    <div class="section-label">每日计划设置</div>
+    <div class="plan-row">
+      <span>每天背</span>
+      <input type="number" id="dailyNewInput" value="${state.dailyNewCount || 5}" min="1" max="50" inputmode="numeric">
+      <span>道新题</span>
+    </div>
+    <div class="plan-row">
+      <span>从第</span>
+      <input type="number" id="planStartInput" value="${state.planStartId || ''}" placeholder="1" min="1" inputmode="numeric">
+      <span>题开始（留空=全部）</span>
+    </div>
     <div class="section-label">选择科目</div>
     <div class="quiz-controls">${subjectChips}</div>
-    <div class="section-label">开始位置</div>
-    <div class="start-from-row">
-      <span>从第</span>
-      <input type="number" id="startFromInput" value="${state.studyStartFrom || ''}" placeholder="1" min="1" inputmode="numeric">
-      <span>题开始（留空 = 全部）</span>
-    </div>
-    <div class="section-label">当前筛选：${countLabel}</div>
+    <div class="section-label">今日任务：新题 ${newN} 道 · 复习 ${dueN} 道</div>
     <div class="px-16 mt-12">
-      <button class="btn btn-primary full" id="startStudyBtn" ${count === 0 ? 'disabled style="opacity:.5"' : ''}>
-        开始学习 (${count})
+      <button class="btn btn-primary full" id="startStudyBtn" ${total === 0 ? 'disabled style="opacity:.5"' : ''}>
+        开始学习（新题 ${newN} + 复习 ${dueN}）
       </button>
     </div>
   </div>`;
@@ -406,11 +422,18 @@ function attachEvents() {
   on('startStudy', () => { currentTab = 'study'; studyQueue = []; studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 }; studySetup = true; render(); });
 
   on('startStudyBtn', () => {
-    const inp = document.getElementById('startFromInput');
-    const val = inp && inp.value ? parseInt(inp.value) : null;
-    state.studyStartFrom = (val && val >= 1) ? val : null;
+    const dailyInp = document.getElementById('dailyNewInput');
+    const startInp = document.getElementById('planStartInput');
+    const dailyVal = dailyInp && dailyInp.value ? parseInt(dailyInp.value) : 5;
+    const startVal = startInp && startInp.value ? parseInt(startInp.value) : null;
+    state.dailyNewCount = (dailyVal >= 1) ? dailyVal : 5;
+    state.planStartId = (startVal && startVal >= 1) ? startVal : null;
     save();
-    studyQueue = [...getDueFiltered()];
+    const newQs = getTodayNewQueue();
+    const dueQs = getDueQuestions().filter(q => q.status !== 'new');
+    const seen = new Set(newQs.map(q => q.id + '|' + (q.subject || '')));
+    const merged = [...newQs, ...dueQs.filter(q => !seen.has(q.id + '|' + (q.subject || '')))];
+    studyQueue = merged;
     studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 };
     studySetup = false;
     render();
@@ -479,7 +502,7 @@ function attachEvents() {
   on('clearData', () => { clearConfirmPending = true; render(); });
   on('clearCancelBtn', () => { clearConfirmPending = false; render(); });
   on('clearConfirmBtn', () => {
-    state = { questions: [], streak: 0, lastStudyDate: null, importDate: null, studyStartFrom: null };
+    state = { questions: [], streak: 0, lastStudyDate: null, importDate: null, planStartId: null, dailyNewCount: 5 };
     studyQueue = []; quizList = []; previewQuestions = []; selectedImportSubject = ''; clearConfirmPending = false; save();
     showToast('数据已清除'); render();
   });
