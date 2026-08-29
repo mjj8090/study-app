@@ -120,7 +120,7 @@ body{
 }
 .today-banner h2{font-size:22px;font-weight:700;margin-bottom:4px;}
 .today-banner p{font-size:14px;opacity:0.85;}
-.today-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px;}
+.today-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;}
 .today-stat{background:rgba(255,255,255,0.18);border-radius:10px;padding:10px 8px;text-align:center;}
 .today-stat .val{font-size:22px;font-weight:700;}
 .today-stat .lbl{font-size:11px;opacity:0.85;margin-top:1px;}
@@ -332,3 +332,55 @@ body{
   -webkit-appearance:none;
 }
 .px-16{padding:0 16px;}
+
+/* ===== PLAN PROGRESS BAR ===== */
+.banner-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.plan-pct{font-size:20px;font-weight:700;opacity:0.9;}
+.plan-progress-bar{
+  background:rgba(255,255,255,0.3);border-radius:100px;
+  height:6px;margin-bottom:14px;
+}
+.plan-progress-fill{
+  background:#fff;border-radius:100px;height:6px;
+  transition:width 0.4s ease;
+}
+.today-banner.banner-done{
+  background:linear-gradient(135deg,#34C759,#248A3D);
+}
+
+/* ===== WEEK TRACK ===== */
+.week-track{
+  display:flex;gap:8px;margin:0 16px 12px;
+  justify-content:space-between;
+}
+.week-dot{
+  flex:1;aspect-ratio:1;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:600;
+}
+.week-dot span{pointer-events:none;}
+.dot-done{background:var(--green);color:#fff;}
+.dot-partial{background:var(--blue);color:#fff;}
+.dot-empty{background:var(--gray4);color:var(--text2);}
+
+/* ===== STATS DONUT ===== */
+.donut-wrap{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  padding:20px 0 10px;
+}
+.donut-label{
+  position:absolute;text-align:center;
+}
+.donut-pct{font-size:32px;font-weight:700;}
+.donut-sub{font-size:13px;color:var(--text2);}
+
+/* ===== IMPORT BOX ===== */
+.import-box{
+  background:var(--card);border-radius:16px;
+  margin:8px 16px;padding:32px 20px;
+  text-align:center;
+  border:2px dashed var(--gray3);
+}
+.import-box .icon{font-size:48px;margin-bottom:10px;}
+.import-box h3{font-size:17px;font-weight:600;margin-bottom:6px;}
+.import-box p{font-size:14px;color:var(--text2);margin-bottom:20px;}
