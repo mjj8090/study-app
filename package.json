@@ -1,0 +1,9 @@
+{
+  "name": "study-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
