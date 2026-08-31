@@ -17,6 +17,8 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+  // Never intercept API calls — let them go directly to the network
+  if (event.request.url.includes('/api/')) return;
   event.respondWith(
     caches.match(event.request)
       .then(response => response || fetch(event.request))
