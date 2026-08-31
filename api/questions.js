@@ -1,30 +1,32 @@
-// GET /api/questions?subject=xxx  — fetch questions for logged-in users
-// POST /api/questions  { subject, questions[] }  — admin only: save questions
-const { kv } = require('@vercel/kv');
-const { verifyToken, cors } = require('./_lib/auth');
+// GET  /api/questions             — list subjects with counts
+// GET  /api/questions?subject=xxx — fetch full questions for a subject
+// POST /api/questions             — admin: save questions { subject, questions[] }
+const { getRedis, verifyToken, cors } = require('./_lib/auth');
+
+async function checkSession(req, res) {
+  const payload = verifyToken(req);
+  if (!payload) { res.status(401).json({ error: '未登录' }); return null; }
+  const kv = getRedis();
+  const activeSession = await kv.hget('sessions', payload.username);
+  if (activeSession !== payload.sessionId) { res.status(401).json({ error: '账号已在其他设备登录' }); return null; }
+  return payload;
+}
 
 module.exports = async (req, res) => {
   cors(res);
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const payload = verifyToken(req);
-  if (!payload) return res.status(401).json({ error: '未登录' });
+  const payload = await checkSession(req, res);
+  if (!payload) return;
 
-  // Verify active session
-  const activeSession = await kv.hget('sessions', payload.username);
-  if (activeSession !== payload.sessionId) {
-    return res.status(401).json({ error: '账号已在其他设备登录' });
-  }
+  const kv = getRedis();
 
   if (req.method === 'GET') {
-    // Return list of subjects and their question counts (not the questions themselves for listing)
-    // If ?subject=xxx is specified, return full questions for that subject
-    const { subject } = req.query || {};
+    const subject = req.query?.subject;
     if (subject) {
-      const data = await kv.get('questions:' + subject);
-      return res.json({ questions: data || [] });
+      const data = await kv.get('questions:' + subject) || [];
+      return res.json({ questions: data });
     }
-    // Return subject list with counts
     const subjects = await kv.get('subjects') || [];
     const result = [];
     for (const s of subjects) {
@@ -38,10 +40,7 @@ module.exports = async (req, res) => {
     if (payload.role !== 'admin') return res.status(403).json({ error: '无权限' });
     const { subject, questions } = req.body || {};
     if (!subject || !Array.isArray(questions)) return res.status(400).json({ error: '参数错误' });
-
     await kv.set('questions:' + subject, questions);
-
-    // Update subject list
     const subjects = await kv.get('subjects') || [];
     if (!subjects.includes(subject)) {
       subjects.push(subject);

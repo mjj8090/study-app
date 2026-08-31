@@ -5,6 +5,15 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS;
 
+// Create Redis client (Upstash)
+function getRedis() {
+  const { Redis } = require('@upstash/redis');
+  return new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+}
+
 // Parse and verify JWT from Authorization header
 function verifyToken(req) {
   const auth = req.headers.authorization || '';
@@ -20,8 +29,8 @@ function verifyToken(req) {
 // CORS headers for all API responses
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
 }
 
-module.exports = { verifyToken, cors, JWT_SECRET, ADMIN_USER, ADMIN_PASS };
+module.exports = { getRedis, verifyToken, cors, JWT_SECRET, ADMIN_USER, ADMIN_PASS };

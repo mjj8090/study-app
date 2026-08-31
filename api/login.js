@@ -1,8 +1,6 @@
 // POST /api/login  { username, password }
-// Returns JWT token on success
-const { kv } = require('@vercel/kv');
 const jwt = require('jsonwebtoken');
-const { cors, JWT_SECRET, ADMIN_USER, ADMIN_PASS } = require('./_lib/auth');
+const { getRedis, cors, JWT_SECRET, ADMIN_USER, ADMIN_PASS } = require('./_lib/auth');
 
 module.exports = async (req, res) => {
   cors(res);
@@ -14,11 +12,12 @@ module.exports = async (req, res) => {
 
   let role = null;
 
-  // Check admin credentials (stored in env vars)
+  // Check admin credentials (env vars)
   if (username === ADMIN_USER && password === ADMIN_PASS) {
     role = 'admin';
   } else {
-    // Check regular user in KV store
+    // Check regular user in Redis
+    const kv = getRedis();
     const stored = await kv.hget('users', username);
     if (!stored || stored.password !== password) {
       return res.status(401).json({ error: '用户名或密码错误' });
@@ -26,8 +25,9 @@ module.exports = async (req, res) => {
     role = 'user';
   }
 
-  // Single session: store active token id per user, invalidate old sessions
+  // Single session: store active sessionId per user (invalidates old sessions)
   const sessionId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const kv = getRedis();
   await kv.hset('sessions', { [username]: sessionId });
 
   const token = jwt.sign({ username, role, sessionId }, JWT_SECRET, { expiresIn: '30d' });
