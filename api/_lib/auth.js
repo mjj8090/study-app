@@ -9,8 +9,8 @@ const ADMIN_PASS = process.env.ADMIN_PASS;
 function getRedis() {
   const { Redis } = require('@upstash/redis');
   return new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    url: process.env.KV_REST_API_URL,
+    token: process.env.KV_REST_API_TOKEN,
   });
 }
 
