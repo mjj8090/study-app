@@ -835,15 +835,13 @@ function renderFreeSetup() {
     `<button class="filter-chip${freeStatus === s ? ' active' : ''}" data-free-status="${s}">${statusLabels[s]}</button>`
   ).join('');
 
-  const previewCount = getFreeQueue().length;
-
   return `
     <div class="section-label">题号范围</div>
     <div class="plan-row">
       <span>从第</span>
-      <input type="number" id="freeStartInput" value="${freeStartId}" placeholder="1" min="1" max="${maxId}" inputmode="numeric">
+      <input type="number" id="freeStartInput" placeholder="1" min="1" max="${maxId}" inputmode="numeric">
       <span>题到第</span>
-      <input type="number" id="freeEndInput" value="${freeEndId}" placeholder="${maxId}" min="1" max="${maxId}" inputmode="numeric">
+      <input type="number" id="freeEndInput" placeholder="${maxId}" min="1" max="${maxId}" inputmode="numeric">
       <span>题</span>
     </div>
 
@@ -861,13 +859,8 @@ function renderFreeSetup() {
       </div>
     </div>
 
-    <div class="section-label" style="margin-top:8px">
-      匹配题目：${previewCount} 道
-    </div>
     <div class="px-16 mt-12">
-      <button class="btn btn-primary full" id="startFreeStudyBtn" ${previewCount === 0 ? 'disabled style="opacity:.5"' : ''}>
-        ${previewCount > 0 ? `开始自由背（${previewCount} 道）` : '无匹配题目'}
-      </button>
+      <button class="btn btn-primary full" id="startFreeStudyBtn">开始自由背</button>
     </div>`;
 }
 
