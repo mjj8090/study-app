@@ -687,6 +687,9 @@ function attachEvents() {
   });
 
   on('startFreeStudyBtn', () => {
+    // Ensure we're in free mode
+    studyMode = 'free';
+
     // Read values from inputs when starting
     const startInp = document.getElementById('freeStartInput');
     const endInp = document.getElementById('freeEndInput');
