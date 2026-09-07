@@ -740,17 +740,17 @@ function renderStudy() {
         ? `<div class="q-answer">${esc(q.answer).replace(/\n/g, '<br>')}</div>`
         : `<button class="reveal-btn" id="revealBtn">查看答案</button>`}
     </div>
+    ${studyMode === 'free' ? `<div class="btn-group mt-8">
+      <button class="btn btn-secondary full" id="prevBtn" ${!canGoPrev ? 'disabled style="opacity:.5"' : ''}>← 上一题</button>
+      <button class="btn btn-secondary full" id="nextBtn" ${!canGoNext ? 'disabled style="opacity:.5"' : ''}>下一题 →</button>
+    </div>` : ''}
     ${studyShown ? `
     <div class="section-label">你还记得吗？</div>
     <div class="btn-group">
       <button class="btn btn-danger full" id="forgotBtn">❌ 没记住</button>
       <button class="btn btn-success full" id="knewBtn">✅ 记住了</button>
     </div>
-    ${studyMode === 'plan' ? `<div class="px-16 mt-8"><button class="btn btn-outline full" id="skipBtn">跳过本题</button></div>` : ''}
-    ${studyMode === 'free' ? `<div class="btn-group mt-8">
-      <button class="btn btn-secondary full" id="prevBtn" ${!canGoPrev ? 'disabled style="opacity:.5"' : ''}>← 上一题</button>
-      <button class="btn btn-secondary full" id="nextBtn" ${!canGoNext ? 'disabled style="opacity:.5"' : ''}>下一题 →</button>
-    </div>` : ''}` : ''}
+    ${studyMode === 'plan' ? `<div class="px-16 mt-8"><button class="btn btn-outline full" id="skipBtn">跳过本题</button></div>` : ''}` : ''}
   </div>`;
 }
 
