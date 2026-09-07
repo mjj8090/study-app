@@ -384,3 +384,25 @@ body{
 .import-box .icon{font-size:48px;margin-bottom:10px;}
 .import-box h3{font-size:17px;font-weight:600;margin-bottom:6px;}
 .import-box p{font-size:14px;color:var(--text2);margin-bottom:20px;}
+
+/* ===== MODE TABS ===== */
+.mode-tabs{
+  display:flex;gap:10px;margin:8px 16px 12px;
+}
+.mode-tab{
+  flex:1;background:var(--card);border:1.5px solid var(--gray3);
+  border-radius:12px;padding:12px;
+  font-size:16px;font-weight:600;
+  color:var(--text);font-family:inherit;
+  cursor:pointer;transition:all 0.2s;
+}
+.mode-tab.active{
+  background:var(--blue);color:#fff;
+  border-color:var(--blue);
+}
+.mode-tab:active{opacity:0.8;}
+
+/* ===== FREE STUDY INPUT ===== */
+.plan-row input[type="number"]{
+  width:80px;
+}

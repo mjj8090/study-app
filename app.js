@@ -103,13 +103,46 @@ function getPlanQueue() {
   const plan = getTodayPlan();
   const allKeys = [...plan.newKeys, ...plan.dueKeys];
   const doneSet = new Set(plan.doneKeys);
-  return allKeys
+  const queue = allKeys
     .filter(k => !doneSet.has(k))
     .map(k => {
       const [idStr, subject] = k.split('|||');
       return state.questions.find(q => q.id === parseInt(idStr) && (q.subject || '') === subject);
     })
     .filter(Boolean);
+
+  // Sort: new questions first (by id), then review questions (by nextReview date)
+  const newQs = queue.filter(q => q.status === 'new').sort((a, b) => a.id - b.id);
+  const reviewQs = queue.filter(q => q.status !== 'new').sort((a, b) => {
+    if (!a.nextReview) return 1;
+    if (!b.nextReview) return -1;
+    return a.nextReview.localeCompare(b.nextReview);
+  });
+
+  return [...newQs, ...reviewQs];
+}
+
+function getFreeQueue() {
+  const startId = parseInt(freeStartId) || 1;
+  const endId = parseInt(freeEndId) || state.questions.length;
+
+  let pool = state.questions.filter(q => q.id >= startId && q.id <= endId);
+
+  if (freeSubject !== 'all') {
+    pool = pool.filter(q => q.subject === freeSubject);
+  }
+
+  if (freeStatus !== 'all') {
+    pool = pool.filter(q => q.status === freeStatus);
+  }
+
+  pool.sort((a, b) => a.id - b.id);
+
+  if (freeRandom) {
+    return shuffle([...pool]);
+  }
+
+  return pool;
 }
 
 // ===== STREAK =====
@@ -130,8 +163,10 @@ function markStudiedToday() {
 
 // ===== UI STATE =====
 let currentTab = 'home';
+let studyMode = 'plan'; // 'plan' or 'free'
 let studyQueue = [], studyIdx = 0, studyShown = false, studyStats = { remembered: 0, forgot: 0 };
 let studySubjectFilter = 'all', studySetup = true;
+let freeStartId = '', freeEndId = '', freeSubject = 'all', freeStatus = 'all', freeRandom = false;
 let quizFilter = 'all', quizSubject = 'all', quizList = [], quizIdx = 0, quizShown = false;
 let previewQuestions = [], selectedImportSubject = '';
 let clearConfirmPending = false;
@@ -265,9 +300,10 @@ function renderStudy() {
   const pct = studyIdx / studyQueue.length * 100;
   const tag = q.status === 'new' ? '新题' : q.status === 'mastered' ? '已掌握' : '复习';
   const subjectTag = q.subject ? ` · ${q.subject}` : '';
+  const modeLabel = studyMode === 'plan' ? '按计划背' : '自由背';
 
   return `<div class="page">
-    <div class="page-header"><div class="page-title">学习</div><button class="setup-btn" id="backToSetup">筛选</button></div>
+    <div class="page-header"><div class="page-title">学习 · ${modeLabel}</div><button class="setup-btn" id="backToSetup">返回</button></div>
     <div class="progress-bar-wrap"><div class="progress-bar-fill" style="width:${pct}%"></div></div>
     <div class="study-counter">${studyIdx + 1} / ${studyQueue.length}</div>
     <div class="study-card">
@@ -282,16 +318,24 @@ function renderStudy() {
     <div class="btn-group">
       <button class="btn btn-danger full" id="forgotBtn">❌ 没记住</button>
       <button class="btn btn-success full" id="knewBtn">✅ 记住了</button>
-    </div>` : ''}
+    </div>
+    ${studyMode === 'plan' ? `<div class="px-16 mt-8"><button class="btn btn-outline full" id="skipBtn">跳过本题</button></div>` : ''}` : ''}
   </div>`;
 }
 
 function renderStudySetup() {
-  const subjects = ['all', '教育学', '心理学', '小三门'];
-  const subjectChips = subjects.map(s =>
-    `<button class="filter-chip${studySubjectFilter === s ? ' active' : ''}" data-study-subject="${s}">${s === 'all' ? '全部科目' : s}</button>`
-  ).join('');
+  const modeTab = (mode, label) => `<button class="mode-tab${studyMode === mode ? ' active' : ''}" data-mode="${mode}">${label}</button>`;
 
+  return `<div class="page">
+    <div class="page-header"><div class="page-title">学习</div></div>
+
+    <div class="mode-tabs">${modeTab('plan', '按计划背')}${modeTab('free', '自由背')}</div>
+
+    ${studyMode === 'plan' ? renderPlanSetup() : renderFreeSetup()}
+  </div>`;
+}
+
+function renderPlanSetup() {
   const plan = getTodayPlan();
   const stats = getPlanStats();
   const newQs = plan.newKeys.map(k => {
@@ -302,9 +346,12 @@ function renderStudySetup() {
   const lastNew  = newQs.length > 0 ? newQs[newQs.length-1].id : '-';
   const remaining = getPlanQueue().length;
 
-  return `<div class="page">
-    <div class="page-header"><div class="page-title">学习</div></div>
+  const subjects = ['all', '教育学', '心理学', '小三门'];
+  const subjectChips = subjects.map(s =>
+    `<button class="filter-chip${studySubjectFilter === s ? ' active' : ''}" data-study-subject="${s}">${s === 'all' ? '全部科目' : s}</button>`
+  ).join('');
 
+  return `
     <div class="section-label">今日计划概览</div>
     <div class="card">
       <div class="card-row"><span class="card-row-label">日期</span><span class="card-row-value">${today()}</span></div>
@@ -332,30 +379,81 @@ function renderStudySetup() {
     <div class="quiz-controls">${subjectChips}</div>
 
     <div class="section-label" style="margin-top:8px">
-      今日剩余：${remaining} 道
+      今日剩余：${remaining} 道（新题优先，然后按到期日期排序）
     </div>
     <div class="px-16 mt-12">
       <button class="btn btn-primary full" id="startStudyBtn" ${remaining === 0 ? 'disabled style="opacity:.5"' : ''}>
         ${remaining > 0 ? `开始学习（${remaining} 道）` : '今日已全部完成 🎉'}
       </button>
+    </div>`;
+}
+
+function renderFreeSetup() {
+  const maxId = state.questions.length > 0 ? Math.max(...state.questions.map(q => q.id)) : 0;
+
+  const subjects = ['all', '教育学', '心理学', '小三门'];
+  const subjectChips = subjects.map(s =>
+    `<button class="filter-chip${freeSubject === s ? ' active' : ''}" data-free-subject="${s}">${s === 'all' ? '全部科目' : s}</button>`
+  ).join('');
+
+  const statusFilters = ['all', 'new', 'learning', 'mastered'];
+  const statusLabels = { all: '全部', new: '新题', learning: '学习中', mastered: '已掌握' };
+  const statusChips = statusFilters.map(s =>
+    `<button class="filter-chip${freeStatus === s ? ' active' : ''}" data-free-status="${s}">${statusLabels[s]}</button>`
+  ).join('');
+
+  const previewCount = getFreeQueue().length;
+
+  return `
+    <div class="section-label">题号范围</div>
+    <div class="plan-row">
+      <span>从第</span>
+      <input type="number" id="freeStartInput" value="${freeStartId}" placeholder="1" min="1" max="${maxId}" inputmode="numeric">
+      <span>题到第</span>
+      <input type="number" id="freeEndInput" value="${freeEndId}" placeholder="${maxId}" min="1" max="${maxId}" inputmode="numeric">
+      <span>题</span>
     </div>
-  </div>`;
+
+    <div class="section-label">科目筛选</div>
+    <div class="quiz-controls">${subjectChips}</div>
+
+    <div class="section-label">状态筛选</div>
+    <div class="quiz-controls">${statusChips}</div>
+
+    <div class="section-label">其他选项</div>
+    <div class="card">
+      <div class="card-row" id="toggleRandom" style="cursor:pointer">
+        <span class="card-row-label">随机顺序</span>
+        <span class="card-row-value ${freeRandom ? 'blue' : ''}">${freeRandom ? '✓ 开启' : '关闭'}</span>
+      </div>
+    </div>
+
+    <div class="section-label" style="margin-top:8px">
+      匹配题目：${previewCount} 道
+    </div>
+    <div class="px-16 mt-12">
+      <button class="btn btn-primary full" id="startFreeStudyBtn" ${previewCount === 0 ? 'disabled style="opacity:.5"' : ''}>
+        ${previewCount > 0 ? `开始自由背（${previewCount} 道）` : '无匹配题目'}
+      </button>
+    </div>`;
 }
 
 function renderStudyDone() {
-  markStudiedToday();
-  const stats = getPlanStats();
+  if (studyMode === 'plan') markStudiedToday();
+  const stats = studyMode === 'plan' ? getPlanStats() : null;
+  const modeLabel = studyMode === 'plan' ? '按计划背' : '自由背';
+
   return `<div class="page">
-    <div class="page-header"><div class="page-title">学习</div></div>
-    <div class="session-done"><div class="done-icon">🎉</div><h2>本次学习完成！</h2><p>继续保持，明天见！</p></div>
+    <div class="page-header"><div class="page-title">学习 · ${modeLabel}</div></div>
+    <div class="session-done"><div class="done-icon">🎉</div><h2>本次学习完成！</h2><p>${studyMode === 'plan' ? '继续保持，明天见！' : '完成自由背诵，继续加油！'}</p></div>
     <div class="done-stats">
       <div class="done-stat"><div class="val green">${studyStats.remembered}</div><div class="lbl">记住了</div></div>
       <div class="done-stat"><div class="val red">${studyStats.forgot}</div><div class="lbl">没记住</div></div>
     </div>
-    <div class="done-stats" style="margin-top:8px">
+    ${studyMode === 'plan' && stats ? `<div class="done-stats" style="margin-top:8px">
       <div class="done-stat"><div class="val blue">${stats.done}</div><div class="lbl">今日已完成</div></div>
       <div class="done-stat"><div class="val">${stats.total}</div><div class="lbl">今日总任务</div></div>
-    </div>
+    </div>` : ''}
     <div class="px-16 mt-12"><button class="btn btn-primary full" id="resetStudy">返回设置</button></div>
   </div>`;
 }
@@ -509,7 +607,14 @@ function renderImport() {
 function attachEvents() {
   document.querySelectorAll('[data-tab]').forEach(el => el.addEventListener('click', () => {
     currentTab = el.dataset.tab;
-    if (currentTab === 'study') { studyQueue = []; studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 }; studySetup = true; }
+    if (currentTab === 'study') {
+      studyQueue = [];
+      studyIdx = 0;
+      studyShown = false;
+      studyStats = { remembered: 0, forgot: 0 };
+      studySetup = true;
+      studyMode = 'plan';
+    }
     if (currentTab === 'quiz') { quizList = []; quizIdx = 0; quizShown = false; }
     clearConfirmPending = false;
     render();
@@ -517,8 +622,24 @@ function attachEvents() {
 
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener('click', fn); };
 
-  on('startStudy', () => { currentTab = 'study'; studyQueue = []; studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 }; studySetup = true; render(); });
+  on('startStudy', () => {
+    currentTab = 'study';
+    studyQueue = [];
+    studyIdx = 0;
+    studyShown = false;
+    studyStats = { remembered: 0, forgot: 0 };
+    studySetup = true;
+    studyMode = 'plan';
+    render();
+  });
 
+  // Mode tabs
+  document.querySelectorAll('[data-mode]').forEach(el => el.addEventListener('click', () => {
+    studyMode = el.dataset.mode;
+    render();
+  }));
+
+  // Plan mode events
   on('regenPlan', () => {
     const dailyInp = document.getElementById('dailyNewInput');
     const startInp = document.getElementById('planStartInput');
@@ -540,6 +661,9 @@ function attachEvents() {
     state.planStartId = (startVal && startVal >= 1) ? startVal : null;
     save();
     studyQueue = getPlanQueue();
+    if (studySubjectFilter !== 'all') {
+      studyQueue = studyQueue.filter(q => q.subject === studySubjectFilter);
+    }
     studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 };
     studySetup = false;
     render();
@@ -549,18 +673,57 @@ function attachEvents() {
     studySubjectFilter = el.dataset.studySubject; render();
   }));
 
+  // Free mode events
+  document.querySelectorAll('[data-free-subject]').forEach(el => el.addEventListener('click', () => {
+    freeSubject = el.dataset.freeSubject; render();
+  }));
+
+  document.querySelectorAll('[data-free-status]').forEach(el => el.addEventListener('click', () => {
+    freeStatus = el.dataset.freeStatus; render();
+  }));
+
+  on('toggleRandom', () => {
+    freeRandom = !freeRandom;
+    render();
+  });
+
+  on('startFreeStudyBtn', () => {
+    const startInp = document.getElementById('freeStartInput');
+    const endInp = document.getElementById('freeEndInput');
+    freeStartId = startInp ? startInp.value : '';
+    freeEndId = endInp ? endInp.value : '';
+
+    studyQueue = getFreeQueue();
+    if (studyQueue.length === 0) {
+      showToast('没有符合条件的题目');
+      return;
+    }
+    studyIdx = 0; studyShown = false; studyStats = { remembered: 0, forgot: 0 };
+    studySetup = false;
+    render();
+  });
+
+  // Study session events
   on('backToSetup', () => { studySetup = true; studyQueue = []; render(); });
   on('revealBtn', () => { studyShown = true; render(); });
+
   on('forgotBtn', () => {
-    markQuestionDone(studyQueue[studyIdx]);
+    if (studyMode === 'plan') markQuestionDone(studyQueue[studyIdx]);
     scheduleNext(studyQueue[studyIdx], false);
     studyStats.forgot++; save(); studyIdx++; studyShown = false; render();
   });
+
   on('knewBtn', () => {
-    markQuestionDone(studyQueue[studyIdx]);
+    if (studyMode === 'plan') markQuestionDone(studyQueue[studyIdx]);
     scheduleNext(studyQueue[studyIdx], true);
     studyStats.remembered++; save(); studyIdx++; studyShown = false; render();
   });
+
+  on('skipBtn', () => {
+    showToast('已跳过，稍后继续');
+    studyIdx++; studyShown = false; render();
+  });
+
   on('resetStudy', () => { studySetup = true; studyQueue = []; render(); });
 
   document.querySelectorAll('[data-filter]').forEach(el => el.addEventListener('click', () => {
