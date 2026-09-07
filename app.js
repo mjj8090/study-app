@@ -123,8 +123,14 @@ function getPlanQueue() {
 }
 
 function getFreeQueue() {
+  // Get fresh values from inputs if available
+  const startInp = document.getElementById('freeStartInput');
+  const endInp = document.getElementById('freeEndInput');
+  if (startInp) freeStartId = startInp.value;
+  if (endInp) freeEndId = endInp.value;
+
   const startId = parseInt(freeStartId) || 1;
-  const endId = parseInt(freeEndId) || state.questions.length;
+  const endId = parseInt(freeEndId) || (state.questions.length > 0 ? Math.max(...state.questions.map(q => q.id)) : 1);
 
   let pool = state.questions.filter(q => q.id >= startId && q.id <= endId);
 
@@ -686,6 +692,22 @@ function attachEvents() {
     freeRandom = !freeRandom;
     render();
   });
+
+  // Real-time update for free mode inputs
+  const freeStartInp = document.getElementById('freeStartInput');
+  const freeEndInp = document.getElementById('freeEndInput');
+  if (freeStartInp) {
+    freeStartInp.addEventListener('input', () => {
+      freeStartId = freeStartInp.value;
+      render();
+    });
+  }
+  if (freeEndInp) {
+    freeEndInp.addEventListener('input', () => {
+      freeEndId = freeEndInp.value;
+      render();
+    });
+  }
 
   on('startFreeStudyBtn', () => {
     const startInp = document.getElementById('freeStartInput');
