@@ -828,7 +828,13 @@ function renderFreeSetup() {
   ).join('');
 
   return `
-    <div class="section-label">题号范围</div>
+    <div class="section-label">科目筛选</div>
+    <div class="quiz-controls">${subjectChips}</div>
+
+    <div class="section-label">状态筛选</div>
+    <div class="quiz-controls">${statusChips}</div>
+
+    <div class="section-label">题号范围（可选）</div>
     <div class="plan-row">
       <span>从第</span>
       <input type="number" id="freeStartInput" placeholder="1" min="1" max="${maxId}" inputmode="numeric">
@@ -836,12 +842,6 @@ function renderFreeSetup() {
       <input type="number" id="freeEndInput" placeholder="${maxId}" min="1" max="${maxId}" inputmode="numeric">
       <span>题</span>
     </div>
-
-    <div class="section-label">科目筛选</div>
-    <div class="quiz-controls">${subjectChips}</div>
-
-    <div class="section-label">状态筛选</div>
-    <div class="quiz-controls">${statusChips}</div>
 
     <div class="section-label">其他选项</div>
     <div class="card">
