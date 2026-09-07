@@ -1120,22 +1120,6 @@ function attachEvents() {
     render();
   });
 
-  // Real-time update for free mode inputs
-  const freeStartInp = document.getElementById('freeStartInput');
-  const freeEndInp = document.getElementById('freeEndInput');
-  if (freeStartInp) {
-    freeStartInp.addEventListener('input', () => {
-      freeStartId = freeStartInp.value;
-      render();
-    });
-  }
-  if (freeEndInp) {
-    freeEndInp.addEventListener('input', () => {
-      freeEndId = freeEndInp.value;
-      render();
-    });
-  }
-
   on('startFreeStudyBtn', () => {
     studyQueue = getFreeQueue(true); // Pass true to read from inputs
     if (studyQueue.length === 0) {
