@@ -301,6 +301,8 @@ function renderStudy() {
   const tag = q.status === 'new' ? '新题' : q.status === 'mastered' ? '已掌握' : '复习';
   const subjectTag = q.subject ? ` · ${q.subject}` : '';
   const modeLabel = studyMode === 'plan' ? '按计划背' : '自由背';
+  const canGoPrev = studyMode === 'free' && studyIdx > 0;
+  const canGoNext = studyMode === 'free' && studyIdx < studyQueue.length - 1;
 
   return `<div class="page">
     <div class="page-header"><div class="page-title">学习 · ${modeLabel}</div><button class="setup-btn" id="backToSetup">返回</button></div>
@@ -319,7 +321,11 @@ function renderStudy() {
       <button class="btn btn-danger full" id="forgotBtn">❌ 没记住</button>
       <button class="btn btn-success full" id="knewBtn">✅ 记住了</button>
     </div>
-    ${studyMode === 'plan' ? `<div class="px-16 mt-8"><button class="btn btn-outline full" id="skipBtn">跳过本题</button></div>` : ''}` : ''}
+    ${studyMode === 'plan' ? `<div class="px-16 mt-8"><button class="btn btn-outline full" id="skipBtn">跳过本题</button></div>` : ''}
+    ${studyMode === 'free' && (canGoPrev || canGoNext) ? `<div class="btn-group mt-8">
+      <button class="btn btn-secondary full" id="prevBtn" ${!canGoPrev ? 'disabled style="opacity:.5"' : ''}>← 上一题</button>
+      <button class="btn btn-secondary full" id="nextBtn" ${!canGoNext ? 'disabled style="opacity:.5"' : ''}>下一题 →</button>
+    </div>` : ''}` : ''}
   </div>`;
 }
 
@@ -716,6 +722,22 @@ function attachEvents() {
   on('skipBtn', () => {
     showToast('已跳过，稍后继续');
     studyIdx++; studyShown = false; render();
+  });
+
+  on('prevBtn', () => {
+    if (studyIdx > 0) {
+      studyIdx--;
+      studyShown = false;
+      render();
+    }
+  });
+
+  on('nextBtn', () => {
+    if (studyIdx < studyQueue.length - 1) {
+      studyIdx++;
+      studyShown = false;
+      render();
+    }
   });
 
   on('resetStudy', () => { studySetup = true; studyQueue = []; render(); });
