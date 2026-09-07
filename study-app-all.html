@@ -547,15 +547,7 @@ function getPlanQueue() {
   return [...newQs, ...reviewQs];
 }
 
-function getFreeQueue(useInputValues = false) {
-  // Only read from inputs when explicitly requested (when starting study)
-  if (useInputValues) {
-    const startInp = document.getElementById('freeStartInput');
-    const endInp = document.getElementById('freeEndInput');
-    if (startInp) freeStartId = startInp.value;
-    if (endInp) freeEndId = endInp.value;
-  }
-
+function getFreeQueue() {
   const startId = parseInt(freeStartId) || 1;
   const endId = parseInt(freeEndId) || (state.questions.length > 0 ? Math.max(...state.questions.map(q => q.id)) : 1);
 
@@ -606,20 +598,7 @@ let clearConfirmPending = false;
 
 // ===== RENDER =====
 function render() {
-  // Save input values before re-render
-  const startInp = document.getElementById('freeStartInput');
-  const endInp = document.getElementById('freeEndInput');
-  const savedStartVal = startInp ? startInp.value : '';
-  const savedEndVal = endInp ? endInp.value : '';
-
   document.getElementById('app').innerHTML = renderNav() + renderPage();
-
-  // Restore input values after re-render
-  const newStartInp = document.getElementById('freeStartInput');
-  const newEndInp = document.getElementById('freeEndInput');
-  if (newStartInp && savedStartVal) newStartInp.value = savedStartVal;
-  if (newEndInp && savedEndVal) newEndInp.value = savedEndVal;
-
   attachEvents();
 }
 
@@ -1127,7 +1106,13 @@ function attachEvents() {
   });
 
   on('startFreeStudyBtn', () => {
-    studyQueue = getFreeQueue(true); // Pass true to read from inputs
+    // Read values from inputs when starting
+    const startInp = document.getElementById('freeStartInput');
+    const endInp = document.getElementById('freeEndInput');
+    if (startInp && startInp.value) freeStartId = startInp.value;
+    if (endInp && endInp.value) freeEndId = endInp.value;
+
+    studyQueue = getFreeQueue();
     if (studyQueue.length === 0) {
       showToast('没有符合条件的题目');
       return;
