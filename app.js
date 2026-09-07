@@ -181,7 +181,20 @@ let clearConfirmPending = false;
 
 // ===== RENDER =====
 function render() {
+  // Save input values before re-render
+  const startInp = document.getElementById('freeStartInput');
+  const endInp = document.getElementById('freeEndInput');
+  const savedStartVal = startInp ? startInp.value : '';
+  const savedEndVal = endInp ? endInp.value : '';
+
   document.getElementById('app').innerHTML = renderNav() + renderPage();
+
+  // Restore input values after re-render
+  const newStartInp = document.getElementById('freeStartInput');
+  const newEndInp = document.getElementById('freeEndInput');
+  if (newStartInp && savedStartVal) newStartInp.value = savedStartVal;
+  if (newEndInp && savedEndVal) newEndInp.value = savedEndVal;
+
   attachEvents();
 }
 
