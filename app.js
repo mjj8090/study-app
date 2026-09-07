@@ -122,12 +122,14 @@ function getPlanQueue() {
   return [...newQs, ...reviewQs];
 }
 
-function getFreeQueue() {
-  // Get fresh values from inputs if available
-  const startInp = document.getElementById('freeStartInput');
-  const endInp = document.getElementById('freeEndInput');
-  if (startInp) freeStartId = startInp.value;
-  if (endInp) freeEndId = endInp.value;
+function getFreeQueue(useInputValues = false) {
+  // Only read from inputs when explicitly requested (when starting study)
+  if (useInputValues) {
+    const startInp = document.getElementById('freeStartInput');
+    const endInp = document.getElementById('freeEndInput');
+    if (startInp) freeStartId = startInp.value;
+    if (endInp) freeEndId = endInp.value;
+  }
 
   const startId = parseInt(freeStartId) || 1;
   const endId = parseInt(freeEndId) || (state.questions.length > 0 ? Math.max(...state.questions.map(q => q.id)) : 1);
@@ -710,12 +712,7 @@ function attachEvents() {
   }
 
   on('startFreeStudyBtn', () => {
-    const startInp = document.getElementById('freeStartInput');
-    const endInp = document.getElementById('freeEndInput');
-    freeStartId = startInp ? startInp.value : '';
-    freeEndId = endInp ? endInp.value : '';
-
-    studyQueue = getFreeQueue();
+    studyQueue = getFreeQueue(true); // Pass true to read from inputs
     if (studyQueue.length === 0) {
       showToast('没有符合条件的题目');
       return;
